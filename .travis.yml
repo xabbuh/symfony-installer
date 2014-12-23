@@ -18,7 +18,7 @@ matrix:
 before_install:
   - composer self-update
 
-script:
+install:
   - if [ "$dependencies" = "lowest" ]; then composer update --prefer-source --prefer-lowest; fi;
   - if [ "$dependencies" = "highest" ]; then composer update --prefer-source; fi;
   - if [ "$dependencies" != "lowest" -a "$dependencies" != "highest" ]; then composer install --dev --prefer-source; fi;

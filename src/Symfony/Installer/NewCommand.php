@@ -1,5 +1,14 @@
 <?php
 
+/*
+ * This file is part of the Symfony Installer package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Symfony\Installer;
 
 use Distill\Distill;
@@ -27,6 +36,16 @@ use Symfony\Component\Filesystem\Filesystem;
 class NewCommand extends Command
 {
     /**
+     * @var Distill
+     */
+    private $distill;
+
+    /**
+     * @var Client
+     */
+    private $client;
+
+    /**
      * @var Filesystem
      */
     private $fs;
@@ -40,6 +59,14 @@ class NewCommand extends Command
      * @var OutputInterface
      */
     private $output;
+
+    public function __construct(Distill $distill, Client $client)
+    {
+        parent::__construct();
+
+        $this->distill = $distill;
+        $this->client = $client;
+    }
 
     protected function configure()
     {
@@ -178,9 +205,8 @@ class NewCommand extends Command
         $this->output->writeln("\n Downloading Symfony...");
 
         // decide which is the best compressed version to download
-        $distill = new Distill();
         $baseName = 'http://symfony.com/download?v=Symfony_Standard_Vendors_'.$this->version;
-        $symfonyArchiveFile = $distill
+        $symfonyArchiveFile = $this->distill
             ->getChooser()
             ->setStrategy(new MinimumSize())
             ->addFilesWithDifferentExtensions($baseName, ['zip', 'tgz'])
@@ -220,14 +246,13 @@ class NewCommand extends Command
             $progressBar->setProgress($downloaded);
         };
 
-        $client = new Client();
-        $client->getEmitter()->attach(new Progress(null, $downloadCallback));
+        $this->client->getEmitter()->attach(new Progress(null, $downloadCallback));
 
         // store the file in a temporary hidden directory with a random name
         $this->compressedFilePath = getcwd().DIRECTORY_SEPARATOR.'.'.uniqid(time()).DIRECTORY_SEPARATOR.'symfony.'.pathinfo($symfonyArchiveFile, PATHINFO_EXTENSION);
 
         try {
-            $response = $client->get($symfonyArchiveFile);
+            $response = $this->client->get($symfonyArchiveFile);
         } catch (ClientException $e) {
             if ($e->getCode() === 403 || $e->getCode() === 404) {
                 throw new \RuntimeException(sprintf(
@@ -269,8 +294,7 @@ class NewCommand extends Command
         $this->output->writeln(" Preparing project...\n");
 
         try {
-            $distill = new Distill();
-            $extractionSucceeded = $distill->extractWithoutRootDirectory($this->compressedFilePath, $this->projectDir);
+            $extractionSucceeded = $this->distill->extractWithoutRootDirectory($this->compressedFilePath, $this->projectDir);
         } catch (FileCorruptedException $e) {
             throw new \RuntimeException(sprintf(
                 "Symfony can't be installed because the downloaded package is corrupted.\n".
